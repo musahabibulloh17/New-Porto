@@ -1,0 +1,92 @@
+/* ===== Hero Section ===== */
+.hero {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9f7f4;
+  padding: 60px 20px;
+  position: relative;
+}
+
+.hero-content {
+  text-align: center;
+}
+
+.hero-title {
+  position: relative;
+  display: inline-block;
+}
+
+.portfolio-text {
+  font-family: "Poppins", sans-serif;
+  font-size: clamp(80px, 15vw, 180px);
+  font-weight: 900;
+  color: #1a1a1a;
+  line-height: 0.85;
+  letter-spacing: -8px;
+  position: relative;
+  text-transform: uppercase;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.portfolio-text .letter {
+  display: inline-block;
+  cursor: default;
+}
+
+.year-badge {
+  position: absolute;
+  top: 0;
+  right: -30px;
+  font-family: "Poppins", sans-serif;
+  font-size: clamp(24px, 4vw, 48px);
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.hero-subtitle {
+  font-size: clamp(14px, 2.5vw, 22px);
+  font-weight: 500;
+  letter-spacing: 8px;
+  color: #c8a951;
+  margin-top: 20px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .portfolio-text {
+    letter-spacing: -4px;
+  }
+  .hero {
+    min-height: 60vh;
+    padding: 40px 16px;
+  }
+  .hero-subtitle {
+    letter-spacing: 4px;
+    margin-top: 15px;
+  }
+  .year-badge {
+    right: -20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    min-height: 50vh;
+    padding: 30px 12px;
+  }
+  .portfolio-text {
+    letter-spacing: -3px;
+  }
+  .hero-subtitle {
+    letter-spacing: 3px;
+    font-size: 12px;
+  }
+  .year-badge {
+    right: -15px;
+  }
+}

@@ -1,0 +1,170 @@
+/* ===== Lanyard System ===== */
+.lanyard-system {
+  flex-shrink: 0;
+  width: 260px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  min-height: 500px;
+  /* Let SVG and card overflow freely — never clip the rope */
+  overflow: visible;
+}
+
+.lanyard-rope {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 450px;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.strap-loop {
+  transition: d 0.05s ease;
+}
+
+.rope-path {
+  transition: d 0.05s ease;
+}
+
+.rope-texture {
+  pointer-events: none;
+}
+
+.rope-shine {
+  pointer-events: none;
+}
+
+.strap-highlight {
+  pointer-events: none;
+}
+
+.metal-clip-svg {
+  pointer-events: none;
+}
+
+/* ===== ID Card ===== */
+.id-card {
+  position: absolute;
+  top: 220px;
+  left: 50%;
+  margin-left: -100px;
+  width: 200px;
+  z-index: 2;
+  cursor: grab;
+  transform-origin: top center;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.id-card.dragging {
+  cursor: grabbing;
+}
+
+.id-card-clip {
+  width: 30px;
+  height: 18px;
+  background: linear-gradient(180deg, #d0d0d0 0%, #a0a0a0 40%, #b8b8b8 60%, #888 100%);
+  border-radius: 3px 3px 2px 2px;
+  margin: 0 auto -3px;
+  position: relative;
+  z-index: 3;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 0.5px solid #777;
+}
+
+.clip-hole {
+  width: 8px;
+  height: 8px;
+  background: #f9f7f4;
+  border-radius: 50%;
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid #888;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.id-card-body {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 12px 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12),
+    0 2px 10px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.id-card.dragging .id-card-body {
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22),
+    0 5px 15px rgba(0, 0, 0, 0.12);
+}
+
+.id-card-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.id-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* ===== Drag Hint ===== */
+.drag-hint {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #bbb;
+  letter-spacing: 1px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.hint-icon {
+  font-size: 14px;
+  display: inline-block;
+  animation: hintBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes hintBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .lanyard-system {
+    width: 220px;
+    min-height: 440px;
+  }
+  .lanyard-rope {
+    width: 260px;
+    height: 400px;
+  }
+  .id-card {
+    width: 170px;
+    margin-left: -85px;
+    top: 200px;
+  }
+}

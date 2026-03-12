@@ -1,0 +1,42 @@
+/* ===== Global Reset & Base ===== */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background: #f9f7f4;
+  color: #222;
+  overflow-x: hidden;
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  padding: 40px 20px;
+  background: #1a1a1a;
+  color: #aaa;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .footer {
+    padding: 30px 16px;
+    font-size: 11px;
+  }
+}
