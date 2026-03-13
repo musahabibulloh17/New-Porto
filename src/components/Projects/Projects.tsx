@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   motion,
   useInView,
@@ -6,56 +6,12 @@ import {
   useTransform,
   type Easing,
 } from "framer-motion";
+import { useProjects } from "../../context/ProjectContext";
+import type { ProjectData } from "../../context/ProjectContext";
+import ProjectModal from "../ProjectModal/ProjectModal";
 import "./Projects.css";
 
-interface Project {
-  name: string;
-  desc: string;
-  color: string;
-  mockup: "phones" | "browser" | "laptop" | "phone";
-  numberColor: string;
-}
-
-const PROJECTS: Project[] = [
-  {
-    name: "TRAVLO",
-    desc: "Accessible Travel for people with special needs",
-    color: "#a8d5a2",
-    mockup: "phones",
-    numberColor: "rgba(76, 175, 80, 0.25)",
-  },
-  {
-    name: "SANORA",
-    desc: "Website Design for a premium safety wear brand",
-    color: "#5a8f5a",
-    mockup: "browser",
-    numberColor: "rgba(46, 125, 50, 0.25)",
-  },
-  {
-    name: "FACTORY FLOW",
-    desc: "Factory Management System",
-    color: "#e74c3c",
-    mockup: "laptop",
-    numberColor: "rgba(244, 67, 54, 0.25)",
-  },
-  {
-    name: "AGODA",
-    desc: "Re-design for the AGODA Website",
-    color: "#c0392b",
-    mockup: "phone",
-    numberColor: "rgba(211, 47, 47, 0.25)",
-  },
-  {
-    name: "BALANCIFY",
-    desc: "Work-life balance, simplified and smart",
-    color: "#5b9bd5",
-    mockup: "phones",
-    numberColor: "rgba(21, 101, 192, 0.25)",
-  },
-];
-
-const NUMBERS = ["01", "02", "03", "04", "05"];
-const NUM_OFFSETS = [20, 30, 5, 35, 10];
+const NUM_OFFSETS = [20, 30, 5, 35, 10, 20, 15, 25, 10, 30];
 
 const cardVariants = {
   hidden: { opacity: 0, y: 40 },
@@ -71,9 +27,14 @@ const cardVariants = {
 };
 
 export default function Projects() {
+  const { projects } = useProjects();
   const sectionRef = useRef<HTMLElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const inView = useInView(cardsRef, { once: true, margin: "-50px" });
+  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
+
+  // Generate number strings
+  const numbers = projects.map((_, i) => String(i + 1).padStart(2, "0"));
 
   // Parallax for content numbers
   const { scrollYProgress } = useScroll({
@@ -86,13 +47,13 @@ export default function Projects() {
       {/* Content Header */}
       <div className="content-header">
         <div className="content-numbers">
-          {NUMBERS.map((num, i) => (
+          {numbers.map((num, i) => (
             <ParallaxNum
               key={num}
               num={num}
               index={i}
               scrollYProgress={scrollYProgress}
-              baseOffset={NUM_OFFSETS[i]}
+              baseOffset={NUM_OFFSETS[i % NUM_OFFSETS.length]}
             />
           ))}
         </div>
@@ -109,9 +70,9 @@ export default function Projects() {
 
       {/* Projects Grid */}
       <div className="projects-grid" ref={cardsRef}>
-        {PROJECTS.map((project, i) => (
+        {projects.map((project, i) => (
           <motion.div
-            key={project.name}
+            key={project.id}
             className="project-card"
             custom={i}
             initial="hidden"
@@ -119,12 +80,21 @@ export default function Projects() {
             variants={cardVariants}
             whileHover={{ scale: 1.03, y: -8 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            onClick={() => setSelectedProject(project)}
           >
             <div
               className="project-preview"
               style={{ backgroundColor: project.color }}
             >
-              <Mockup type={project.mockup} />
+              {project.image ? (
+                <img
+                  className="project-image"
+                  src={project.image}
+                  alt={project.name}
+                />
+              ) : (
+                <Mockup type={project.mockup} />
+              )}
             </div>
             <div
               className="project-number"
@@ -139,6 +109,12 @@ export default function Projects() {
           </motion.div>
         ))}
       </div>
+
+      {/* Project Detail Modal */}
+      <ProjectModal
+        project={selectedProject}
+        onClose={() => setSelectedProject(null)}
+      />
     </section>
   );
 }
@@ -169,7 +145,7 @@ function ParallaxNum({
 }
 
 /* --- Mockup Components --- */
-function Mockup({ type }: { type: Project["mockup"] }) {
+function Mockup({ type }: { type: ProjectData["mockup"] }) {
   switch (type) {
     case "phones":
       return (
