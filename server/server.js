@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import pg from "pg";
@@ -8,47 +8,37 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 
 const { Pool } = pg;
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Static files for uploaded images
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsDir));
 
-// Serve the built Vite frontend (production)
 const distDir = path.join(__dirname, "..", "dist");
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
 }
 
-// Health check endpoint (required by DigitalOcean App Platform)
 app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
 
-// Multer setup for image upload
-const storage = multer.diskStorage({
+const multerStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const name = `project-${Date.now()}${ext}`;
-    cb(null, name);
+    cb(null, "project-" + Date.now() + path.extname(file.originalname));
   },
 });
-
 const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  storage: multerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path.extname(file.originalname))) {
       cb(null, true);
     } else {
       cb(new Error("Only image files are allowed"));
@@ -56,16 +46,23 @@ const upload = multer({
   },
 });
 
-// PostgreSQL connection pool
-// Supports DATABASE_URL (DigitalOcean App Platform) or individual env vars (local)
+let dbReady = false;
+
+const SEED_PROJECTS = [
+  { id: "1", name: "TRAVLO", desc: "Accessible Travel for people with special needs", color: "#a8d5a2", mockup: "phones", numberColor: "rgba(76, 175, 80, 0.25)", description: "Travlo is a mobile application designed to make traveling more accessible for people with special needs.", features: ["Accessibility-focused travel recommendations", "Real-time navigation assistance", "Community reviews & ratings", "Multi-language support"], developedBy: ["Musa Habibulloh (UI/UX Design)"], links: [] },
+  { id: "2", name: "SANORA", desc: "Website Design for a premium safety wear brand", color: "#5a8f5a", mockup: "browser", numberColor: "rgba(46, 125, 50, 0.25)", description: "A complete website redesign for Sanora Wear, a premium safety wear brand.", features: ["Modern & clean UI design", "Product catalog with filtering", "Responsive across all devices"], developedBy: ["Musa Habibulloh (UI/UX Design)"], links: [] },
+  { id: "3", name: "FACTORY FLOW", desc: "Factory Management System", color: "#e74c3c", mockup: "laptop", numberColor: "rgba(244, 67, 54, 0.25)", description: "Factory Flow is a comprehensive factory management system.", features: ["Production workflow management", "Real-time inventory tracking", "Worker scheduling & management", "Analytics dashboard"], developedBy: ["Musa Habibulloh (UI/UX Design)"], links: [] },
+  { id: "4", name: "AGODA", desc: "Re-design for the AGODA Website", color: "#c0392b", mockup: "phone", numberColor: "rgba(211, 47, 47, 0.25)", description: "A UI/UX redesign concept for the Agoda booking platform.", features: ["Simplified booking flow", "Improved search & filter UX", "Modern visual redesign"], developedBy: ["Musa Habibulloh (UI/UX Design)"], links: [] },
+  { id: "5", name: "BALANCIFY", desc: "Work-life balance, simplified and smart", color: "#5b9bd5", mockup: "phones", numberColor: "rgba(21, 101, 192, 0.25)", description: "Balancify is a smart app that helps users maintain a healthy work-life balance.", features: ["Smart task scheduling", "Wellness & mood tracking", "Mindful break reminders", "Weekly balance reports"], developedBy: ["Musa Habibulloh (UI/UX Design)"], links: [] },
+];
+
+let memoryProjects = JSON.parse(JSON.stringify(SEED_PROJECTS));
+let memoryNextId = 6;
+
 let pool;
 if (process.env.DATABASE_URL) {
-  // Strip sslmode from connection string so we can control SSL manually
-  const connStr = process.env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/g, "");
-  pool = new Pool({
-    connectionString: connStr,
-    ssl: { rejectUnauthorized: false },
-  });
+  const cs = process.env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/g, "");
+  pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false } });
 } else {
   pool = new Pool({
     host: process.env.DB_HOST || "localhost",
@@ -77,265 +74,155 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-// Init DB: create table + seed default data if empty
 async function initDatabase() {
   try {
     const client = await pool.connect();
-    console.log("✅ PostgreSQL connected successfully");
-
-    // Discover the database user and current database for diagnostics
-    const { rows: [{ current_user: dbUser, current_database: dbName }] } = await client.query(
-      `SELECT current_user, current_database()`
-    );
-    console.log(`ℹ️  Connected as user "${dbUser}" to database "${dbName}"`);
-
-    // List ALL schemas we can see
-    const { rows: allSchemas } = await client.query(`
-      SELECT schema_name, schema_owner
-      FROM information_schema.schemata
-      ORDER BY schema_name
-    `);
-    console.log("ℹ️  All schemas:", allSchemas.map(r => `${r.schema_name} (owner: ${r.schema_owner})`).join(", "));
-
-    // Determine which schema to use
-    // Priority: DB_SCHEMA env var → schema matching our username → schema matching DB name → public
-    let schema = process.env.DB_SCHEMA || null;
-
-    if (!schema) {
-      // Check if there's a schema named after our user
-      const userSchema = allSchemas.find(s => s.schema_name === dbUser);
-      // Check if there's a schema named after the database
-      const dbSchema = allSchemas.find(s => s.schema_name === dbName);
-      // Check for any non-system schema we own
-      const ownedSchema = allSchemas.find(
-        s => s.schema_owner === dbUser
-          && s.schema_name !== 'information_schema'
-          && !s.schema_name.startsWith('pg_')
-      );
-
-      if (userSchema) {
-        schema = userSchema.schema_name;
-      } else if (dbSchema) {
-        schema = dbSchema.schema_name;
-      } else if (ownedSchema) {
-        schema = ownedSchema.schema_name;
-      } else {
-        schema = "public";
-      }
-    }
-
-    // Lock in the chosen schema
-    await client.query(`SET search_path TO "${schema}"`);
-    console.log(`ℹ️  Using schema: "${schema}"`);
-
-    // Ensure every new connection from the pool uses the same schema
-    pool.on("connect", (conn) => {
-      conn.query(`SET search_path TO "${schema}"`);
-    });
-
-    // Create table if not exists
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id          SERIAL PRIMARY KEY,
-        name        VARCHAR(255) NOT NULL,
-        description_short VARCHAR(500) NOT NULL DEFAULT '',
-        color       VARCHAR(20)  NOT NULL DEFAULT '#333333',
-        mockup      VARCHAR(20)  NOT NULL DEFAULT 'phones'
-                    CHECK (mockup IN ('phones', 'browser', 'laptop', 'phone')),
-        number_color VARCHAR(50) NOT NULL DEFAULT 'rgba(0,0,0,0.25)',
-        image_url   VARCHAR(500) DEFAULT NULL,
-        description_long TEXT    DEFAULT NULL,
-        features    JSONB        DEFAULT '[]',
-        developed_by JSONB       DEFAULT '[]',
-        links       JSONB        DEFAULT '[]',
-        sort_order  INT          NOT NULL DEFAULT 0,
-        created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-        updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log("✅ Table 'projects' ready");
-
-    // Seed default data if table is empty
+    console.log("PostgreSQL connected");
+    await client.query(`CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL,
+      description_short VARCHAR(500) NOT NULL DEFAULT '',
+      color VARCHAR(20) NOT NULL DEFAULT '#333333',
+      mockup VARCHAR(20) NOT NULL DEFAULT 'phones' CHECK (mockup IN ('phones','browser','laptop','phone')),
+      number_color VARCHAR(50) NOT NULL DEFAULT 'rgba(0,0,0,0.25)',
+      image_url VARCHAR(500) DEFAULT NULL, description_long TEXT DEFAULT NULL,
+      features JSONB DEFAULT '[]', developed_by JSONB DEFAULT '[]',
+      links JSONB DEFAULT '[]', sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    console.log("Table ready");
     const { rows } = await client.query("SELECT COUNT(*) FROM projects");
     if (parseInt(rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO projects (name, description_short, color, mockup, number_color, description_long, features, developed_by, links, sort_order)
-        VALUES
-        ('TRAVLO', 'Accessible Travel for people with special needs', '#a8d5a2', 'phones', 'rgba(76, 175, 80, 0.25)', 'Travlo is a mobile application designed to make traveling more accessible for people with special needs. The app provides tailored recommendations, accessibility info, and real-time assistance.', '["Accessibility-focused travel recommendations", "Real-time navigation assistance", "Community reviews & ratings", "Multi-language support"]', '["Musa Habibulloh (UI/UX Design)"]', '[]', 1),
-        ('SANORA', 'Website Design for a premium safety wear brand', '#5a8f5a', 'browser', 'rgba(46, 125, 50, 0.25)', 'A complete website redesign for Sanora Wear, a premium safety wear brand. The design focuses on trust, professionalism, and easy product discovery.', '["Modern & clean UI design", "Product catalog with filtering", "Responsive across all devices"]', '["Musa Habibulloh (UI/UX Design)"]', '[]', 2),
-        ('FACTORY FLOW', 'Factory Management System', '#e74c3c', 'laptop', 'rgba(244, 67, 54, 0.25)', 'Factory Flow is a comprehensive factory management system designed to streamline production workflows, inventory tracking, and worker management.', '["Production workflow management", "Real-time inventory tracking", "Worker scheduling & management", "Analytics dashboard"]', '["Musa Habibulloh (UI/UX Design)"]', '[]', 3),
-        ('AGODA', 'Re-design for the AGODA Website', '#c0392b', 'phone', 'rgba(211, 47, 47, 0.25)', 'A UI/UX redesign concept for the Agoda booking platform, focusing on improved user experience and a more modern visual language.', '["Simplified booking flow", "Improved search & filter UX", "Modern visual redesign"]', '["Musa Habibulloh (UI/UX Design)"]', '[]', 4),
-        ('BALANCIFY', 'Work-life balance, simplified and smart', '#5b9bd5', 'phones', 'rgba(21, 101, 192, 0.25)', 'Balancify is a smart app that helps users maintain a healthy work-life balance through task scheduling, wellness tracking, and mindful reminders.', '["Smart task scheduling", "Wellness & mood tracking", "Mindful break reminders", "Weekly balance reports"]', '["Musa Habibulloh (UI/UX Design)"]', '[]', 5)
-      `);
-      console.log("✅ Default projects seeded");
+      for (const p of SEED_PROJECTS) {
+        await client.query(
+          `INSERT INTO projects (name,description_short,color,mockup,number_color,description_long,features,developed_by,links,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [p.name, p.desc, p.color, p.mockup, p.numberColor, p.description, JSON.stringify(p.features), JSON.stringify(p.developedBy), JSON.stringify(p.links), parseInt(p.id)]
+        );
+      }
+      console.log("Seeded projects");
     }
-
     client.release();
+    dbReady = true;
+    console.log("Mode: DATABASE");
   } catch (err) {
-    console.error("❌ Database init failed:", err.message);
-    console.error("⚠️  Server will continue running but database may not work");
-    // Don't exit — let server stay up so we can see logs
+    console.warn("DB init failed:", err.message);
+    console.log("Mode: IN-MEMORY (portfolio still works)");
+    dbReady = false;
   }
 }
 
-// Helper: format DB row to frontend ProjectData shape
-// pg auto-parses JSONB columns, so no need for JSON.parse
-function formatProject(row) {
+function fmt(row) {
   return {
-    id: String(row.id),
-    name: row.name,
-    desc: row.description_short,
-    color: row.color,
-    mockup: row.mockup,
-    numberColor: row.number_color,
-    image: row.image_url || undefined,
-    description: row.description_long || undefined,
-    features: row.features ?? [],
-    developedBy: row.developed_by ?? [],
-    links: row.links ?? [],
+    id: String(row.id), name: row.name, desc: row.description_short,
+    color: row.color, mockup: row.mockup, numberColor: row.number_color,
+    image: row.image_url || undefined, description: row.description_long || undefined,
+    features: row.features || [], developedBy: row.developed_by || [], links: row.links || [],
   };
 }
 
-/* ================================================================== */
-/*  API Routes                                                        */
-/* ================================================================== */
-
-// GET /api/projects — list all
 app.get("/api/projects", async (_req, res) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM projects ORDER BY sort_order ASC, id ASC");
-    res.json(rows.map(formatProject));
+    if (dbReady) {
+      const { rows } = await pool.query("SELECT * FROM projects ORDER BY sort_order ASC, id ASC");
+      return res.json(rows.map(fmt));
+    }
+    res.json(memoryProjects);
   } catch (err) {
-    console.error("GET /api/projects error:", err);
-    res.status(500).json({ error: "Failed to fetch projects" });
+    console.error("GET /api/projects:", err.message);
+    res.json(memoryProjects);
   }
 });
 
-// GET /api/projects/:id — single
 app.get("/api/projects/:id", async (req, res) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM projects WHERE id = $1", [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: "Not found" });
-    res.json(formatProject(rows[0]));
+    if (dbReady) {
+      const { rows } = await pool.query("SELECT * FROM projects WHERE id=$1", [req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      return res.json(fmt(rows[0]));
+    }
+    const p = memoryProjects.find((x) => x.id === req.params.id);
+    if (!p) return res.status(404).json({ error: "Not found" });
+    res.json(p);
   } catch (err) {
-    console.error("GET /api/projects/:id error:", err);
-    res.status(500).json({ error: "Failed to fetch project" });
+    console.error("GET /api/projects/:id:", err.message);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-// POST /api/projects — create
 app.post("/api/projects", async (req, res) => {
   try {
     const { name, desc, color, mockup, numberColor, image, description, features, developedBy, links } = req.body;
-
-    console.log("POST /api/projects — links received:", JSON.stringify(links));
-
-    // Get next sort order
-    const { rows: maxRows } = await pool.query("SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_order FROM projects");
-    const sortOrder = maxRows[0].next_order;
-
-    const { rows } = await pool.query(
-      `INSERT INTO projects (name, description_short, color, mockup, number_color, image_url, description_long, features, developed_by, links, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       RETURNING *`,
-      [
-        name,
-        desc || "",
-        color || "#333333",
-        mockup || "phones",
-        numberColor || "rgba(0,0,0,0.25)",
-        image || null,
-        description || null,
-        JSON.stringify(features || []),
-        JSON.stringify(developedBy || []),
-        JSON.stringify(links || []),
-        sortOrder,
-      ]
-    );
-
-    res.status(201).json(formatProject(rows[0]));
+    if (dbReady) {
+      const { rows: mx } = await pool.query("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM projects");
+      const { rows } = await pool.query(
+        `INSERT INTO projects (name,description_short,color,mockup,number_color,image_url,description_long,features,developed_by,links,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [name, desc||"", color||"#333333", mockup||"phones", numberColor||"rgba(0,0,0,0.25)", image||null, description||null, JSON.stringify(features||[]), JSON.stringify(developedBy||[]), JSON.stringify(links||[]), mx[0].n]
+      );
+      return res.status(201).json(fmt(rows[0]));
+    }
+    const np = { id: String(memoryNextId++), name, desc: desc||"", color: color||"#333333", mockup: mockup||"phones", numberColor: numberColor||"rgba(0,0,0,0.25)", image, description, features: features||[], developedBy: developedBy||[], links: links||[] };
+    memoryProjects.push(np);
+    res.status(201).json(np);
   } catch (err) {
-    console.error("POST /api/projects error:", err);
-    res.status(500).json({ error: "Failed to create project" });
+    console.error("POST /api/projects:", err.message);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-// PUT /api/projects/:id — update
 app.put("/api/projects/:id", async (req, res) => {
   try {
     const { name, desc, color, mockup, numberColor, image, description, features, developedBy, links } = req.body;
-
-    console.log(`PUT /api/projects/${req.params.id} — links received:`, JSON.stringify(links));
-
-    const { rows } = await pool.query(
-      `UPDATE projects SET
-        name = $1, description_short = $2, color = $3, mockup = $4, number_color = $5,
-        image_url = $6, description_long = $7, features = $8, developed_by = $9, links = $10,
-        updated_at = NOW()
-       WHERE id = $11
-       RETURNING *`,
-      [
-        name,
-        desc || "",
-        color || "#333333",
-        mockup || "phones",
-        numberColor || "rgba(0,0,0,0.25)",
-        image || null,
-        description || null,
-        JSON.stringify(features || []),
-        JSON.stringify(developedBy || []),
-        JSON.stringify(links || []),
-        req.params.id,
-      ]
-    );
-
-    if (rows.length === 0) return res.status(404).json({ error: "Not found" });
-    res.json(formatProject(rows[0]));
+    if (dbReady) {
+      const { rows } = await pool.query(
+        `UPDATE projects SET name=$1,description_short=$2,color=$3,mockup=$4,number_color=$5,image_url=$6,description_long=$7,features=$8,developed_by=$9,links=$10,updated_at=NOW() WHERE id=$11 RETURNING *`,
+        [name, desc||"", color||"#333333", mockup||"phones", numberColor||"rgba(0,0,0,0.25)", image||null, description||null, JSON.stringify(features||[]), JSON.stringify(developedBy||[]), JSON.stringify(links||[]), req.params.id]
+      );
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      return res.json(fmt(rows[0]));
+    }
+    const idx = memoryProjects.findIndex((x) => x.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: "Not found" });
+    Object.assign(memoryProjects[idx], { name, desc, color, mockup, numberColor, image, description, features, developedBy, links });
+    res.json(memoryProjects[idx]);
   } catch (err) {
-    console.error("PUT /api/projects/:id error:", err);
-    res.status(500).json({ error: "Failed to update project" });
+    console.error("PUT /api/projects/:id:", err.message);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-// DELETE /api/projects/:id
 app.delete("/api/projects/:id", async (req, res) => {
   try {
-    // Get image URL before deleting to clean up file
-    const { rows } = await pool.query("SELECT image_url FROM projects WHERE id = $1", [req.params.id]);
-    if (rows.length > 0 && rows[0].image_url) {
-      const imgPath = rows[0].image_url;
-      // Only delete local files
-      if (imgPath.startsWith("/uploads/")) {
-        const fullPath = path.join(__dirname, imgPath);
-        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    if (dbReady) {
+      const { rows } = await pool.query("SELECT image_url FROM projects WHERE id=$1", [req.params.id]);
+      if (rows.length && rows[0].image_url && rows[0].image_url.startsWith("/uploads/")) {
+        const fp = path.join(__dirname, rows[0].image_url);
+        if (fs.existsSync(fp)) fs.unlinkSync(fp);
       }
+      const r = await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
+      if (r.rowCount === 0) return res.status(404).json({ error: "Not found" });
+      return res.json({ success: true });
     }
-
-    const result = await pool.query("DELETE FROM projects WHERE id = $1", [req.params.id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: "Not found" });
+    const idx = memoryProjects.findIndex((x) => x.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: "Not found" });
+    memoryProjects.splice(idx, 1);
     res.json({ success: true });
   } catch (err) {
-    console.error("DELETE /api/projects/:id error:", err);
-    res.status(500).json({ error: "Failed to delete project" });
+    console.error("DELETE /api/projects/:id:", err.message);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-// POST /api/upload — image upload
 app.post("/api/upload", upload.single("image"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  const imageUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: imageUrl });
+  if (!req.file) return res.status(400).json({ error: "No file" });
+  res.json({ url: "/uploads/" + req.file.filename });
 });
 
-// SPA catch-all: serve index.html for any non-API route (must be after all API routes)
 if (fs.existsSync(path.join(distDir, "index.html"))) {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
 }
 
-// Start server
 app.listen(PORT, async () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log("Server running on http://localhost:" + PORT);
   await initDatabase();
 });
