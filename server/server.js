@@ -78,17 +78,50 @@ async function initDatabase() {
     const client = await pool.connect();
     console.log("✅ PostgreSQL connected successfully");
 
-    // Grant permissions (needed for DigitalOcean dev database)
+    // Detect available schema — DigitalOcean managed DBs may not allow
+    // creating objects in the public schema. Fall back to the user's own schema.
+    let schema = "public";
     try {
-      await client.query(`GRANT ALL ON SCHEMA public TO CURRENT_USER`);
+      // Test if we can create in public by using a savepoint
       await client.query(`SET search_path TO public`);
+      await client.query(`SAVEPOINT schema_test`);
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS _schema_test (_t int)`
+      );
+      await client.query(`DROP TABLE IF EXISTS _schema_test`);
+      await client.query(`RELEASE SAVEPOINT schema_test`);
     } catch (e) {
-      console.log("ℹ️  Grant skipped:", e.message);
+      // Roll back the failed savepoint so the connection is still usable
+      try { await client.query(`ROLLBACK TO SAVEPOINT schema_test`); } catch (_) {}
+
+      // public not writable — use the DB user's default schema
+      const {
+        rows: [{ current_user: dbUser }],
+      } = await client.query(`SELECT current_user`);
+      schema = dbUser;
+      console.log(
+        `ℹ️  public schema not writable, using schema "${schema}" instead`
+      );
+      try {
+        await client.query(
+          `CREATE SCHEMA IF NOT EXISTS "${schema}" AUTHORIZATION "${schema}"`
+        );
+      } catch (_) {
+        // Schema may already exist or we can't create it
+      }
+      await client.query(`SET search_path TO "${schema}"`);
+    }
+
+    // Ensure every new connection from the pool uses the correct search_path
+    if (schema !== "public") {
+      pool.on("connect", (conn) => {
+        conn.query(`SET search_path TO "${schema}"`);
+      });
     }
 
     // Create table if not exists
     await client.query(`
-      CREATE TABLE IF NOT EXISTS public.projects (
+      CREATE TABLE IF NOT EXISTS projects (
         id          SERIAL PRIMARY KEY,
         name        VARCHAR(255) NOT NULL,
         description_short VARCHAR(500) NOT NULL DEFAULT '',
