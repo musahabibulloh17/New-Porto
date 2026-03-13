@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.SERVER_PORT || 3001;
+const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -78,46 +78,55 @@ async function initDatabase() {
     const client = await pool.connect();
     console.log("✅ PostgreSQL connected successfully");
 
-    // Detect available schema — DigitalOcean managed DBs may not allow
-    // creating objects in the public schema. Fall back to the user's own schema.
-    let schema = "public";
-    try {
-      // Test if we can create in public by using a savepoint
-      await client.query(`SET search_path TO public`);
-      await client.query(`SAVEPOINT schema_test`);
-      await client.query(
-        `CREATE TABLE IF NOT EXISTS _schema_test (_t int)`
-      );
-      await client.query(`DROP TABLE IF EXISTS _schema_test`);
-      await client.query(`RELEASE SAVEPOINT schema_test`);
-    } catch (e) {
-      // Roll back the failed savepoint so the connection is still usable
-      try { await client.query(`ROLLBACK TO SAVEPOINT schema_test`); } catch (_) {}
+    // Detect available schema — DigitalOcean dev DBs provide a custom schema
+    // (e.g. "dev-db-028904") and block writes to "public".
+    // Priority: DB_SCHEMA env var  →  public (if writable)  →  first non-system schema we own
+    let schema = process.env.DB_SCHEMA || "public";
 
-      // public not writable — use the DB user's default schema
-      const {
-        rows: [{ current_user: dbUser }],
-      } = await client.query(`SELECT current_user`);
-      schema = dbUser;
-      console.log(
-        `ℹ️  public schema not writable, using schema "${schema}" instead`
-      );
+    if (!process.env.DB_SCHEMA) {
+      // Test if public is writable
+      let publicOk = false;
       try {
-        await client.query(
-          `CREATE SCHEMA IF NOT EXISTS "${schema}" AUTHORIZATION "${schema}"`
-        );
+        await client.query(`SAVEPOINT schema_test`);
+        await client.query(`SET search_path TO public`);
+        await client.query(`CREATE TABLE IF NOT EXISTS _schema_test (_t int)`);
+        await client.query(`DROP TABLE IF EXISTS _schema_test`);
+        await client.query(`RELEASE SAVEPOINT schema_test`);
+        publicOk = true;
       } catch (_) {
-        // Schema may already exist or we can't create it
+        try { await client.query(`ROLLBACK TO SAVEPOINT schema_test`); } catch (__) {}
       }
-      await client.query(`SET search_path TO "${schema}"`);
+
+      if (!publicOk) {
+        // Find a non-system schema we have CREATE privilege on
+        const { rows: schemas } = await client.query(`
+          SELECT schema_name
+          FROM information_schema.schemata
+          WHERE schema_name NOT IN ('public', 'information_schema')
+            AND schema_name NOT LIKE 'pg_%'
+          ORDER BY schema_name
+        `);
+        console.log("ℹ️  Available schemas:", schemas.map(r => r.schema_name).join(", "));
+
+        if (schemas.length > 0) {
+          schema = schemas[0].schema_name;
+        } else {
+          // Last resort: try creating one named after current_user
+          const { rows: [{ current_user: dbUser }] } = await client.query(`SELECT current_user`);
+          schema = dbUser;
+          await client.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+        }
+      }
     }
 
-    // Ensure every new connection from the pool uses the correct search_path
-    if (schema !== "public") {
-      pool.on("connect", (conn) => {
-        conn.query(`SET search_path TO "${schema}"`);
-      });
-    }
+    // Lock in the chosen schema
+    await client.query(`SET search_path TO "${schema}"`);
+    console.log(`ℹ️  Using schema: "${schema}"`);
+
+    // Ensure every new connection from the pool uses the same schema
+    pool.on("connect", (conn) => {
+      conn.query(`SET search_path TO "${schema}"`);
+    });
 
     // Create table if not exists
     await client.query(`
