@@ -49,22 +49,24 @@ const upload = multer({
 
 // PostgreSQL connection pool
 // Supports DATABASE_URL (DigitalOcean App Platform) or individual env vars (local)
-const pool = process.env.DATABASE_URL
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false,
-        checkServerIdentity: () => undefined,
-      },
-    })
-  : new Pool({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5432"),
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "",
-      database: process.env.DB_NAME || "portfolio_db",
-      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-    });
+let pool;
+if (process.env.DATABASE_URL) {
+  // Strip sslmode from connection string so we can control SSL manually
+  const connStr = process.env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/g, "");
+  pool = new Pool({
+    connectionString: connStr,
+    ssl: { rejectUnauthorized: false },
+  });
+} else {
+  pool = new Pool({
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "5432"),
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "portfolio_db",
+    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
+  });
+}
 
 // Init DB: create table + seed default data if empty
 async function initDatabase() {
