@@ -24,8 +24,13 @@ const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsDir));
 
+// Serve the built Vite frontend (production)
+const distDir = path.join(__dirname, "..", "dist");
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+}
+
 // Health check endpoint (required by DigitalOcean App Platform)
-app.get("/", (_req, res) => res.status(200).json({ status: "ok" }));
 app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
 
 // Multer setup for image upload
@@ -321,6 +326,13 @@ app.post("/api/upload", upload.single("image"), (req, res) => {
   const imageUrl = `/uploads/${req.file.filename}`;
   res.json({ url: imageUrl });
 });
+
+// SPA catch-all: serve index.html for any non-API route (must be after all API routes)
+if (fs.existsSync(path.join(distDir, "index.html"))) {
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+}
 
 // Start server
 app.listen(PORT, async () => {
