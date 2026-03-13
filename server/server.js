@@ -83,44 +83,44 @@ async function initDatabase() {
     const client = await pool.connect();
     console.log("✅ PostgreSQL connected successfully");
 
-    // Detect available schema — DigitalOcean dev DBs provide a custom schema
-    // (e.g. "dev-db-028904") and block writes to "public".
-    // Priority: DB_SCHEMA env var  →  public (if writable)  →  first non-system schema we own
-    let schema = process.env.DB_SCHEMA || "public";
+    // Discover the database user and current database for diagnostics
+    const { rows: [{ current_user: dbUser, current_database: dbName }] } = await client.query(
+      `SELECT current_user, current_database()`
+    );
+    console.log(`ℹ️  Connected as user "${dbUser}" to database "${dbName}"`);
 
-    if (!process.env.DB_SCHEMA) {
-      // Test if public is writable
-      let publicOk = false;
-      try {
-        await client.query(`SAVEPOINT schema_test`);
-        await client.query(`SET search_path TO public`);
-        await client.query(`CREATE TABLE IF NOT EXISTS _schema_test (_t int)`);
-        await client.query(`DROP TABLE IF EXISTS _schema_test`);
-        await client.query(`RELEASE SAVEPOINT schema_test`);
-        publicOk = true;
-      } catch (_) {
-        try { await client.query(`ROLLBACK TO SAVEPOINT schema_test`); } catch (__) {}
-      }
+    // List ALL schemas we can see
+    const { rows: allSchemas } = await client.query(`
+      SELECT schema_name, schema_owner
+      FROM information_schema.schemata
+      ORDER BY schema_name
+    `);
+    console.log("ℹ️  All schemas:", allSchemas.map(r => `${r.schema_name} (owner: ${r.schema_owner})`).join(", "));
 
-      if (!publicOk) {
-        // Find a non-system schema we have CREATE privilege on
-        const { rows: schemas } = await client.query(`
-          SELECT schema_name
-          FROM information_schema.schemata
-          WHERE schema_name NOT IN ('public', 'information_schema')
-            AND schema_name NOT LIKE 'pg_%'
-          ORDER BY schema_name
-        `);
-        console.log("ℹ️  Available schemas:", schemas.map(r => r.schema_name).join(", "));
+    // Determine which schema to use
+    // Priority: DB_SCHEMA env var → schema matching our username → schema matching DB name → public
+    let schema = process.env.DB_SCHEMA || null;
 
-        if (schemas.length > 0) {
-          schema = schemas[0].schema_name;
-        } else {
-          // Last resort: try creating one named after current_user
-          const { rows: [{ current_user: dbUser }] } = await client.query(`SELECT current_user`);
-          schema = dbUser;
-          await client.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
-        }
+    if (!schema) {
+      // Check if there's a schema named after our user
+      const userSchema = allSchemas.find(s => s.schema_name === dbUser);
+      // Check if there's a schema named after the database
+      const dbSchema = allSchemas.find(s => s.schema_name === dbName);
+      // Check for any non-system schema we own
+      const ownedSchema = allSchemas.find(
+        s => s.schema_owner === dbUser
+          && s.schema_name !== 'information_schema'
+          && !s.schema_name.startsWith('pg_')
+      );
+
+      if (userSchema) {
+        schema = userSchema.schema_name;
+      } else if (dbSchema) {
+        schema = dbSchema.schema_name;
+      } else if (ownedSchema) {
+        schema = ownedSchema.schema_name;
+      } else {
+        schema = "public";
       }
     }
 
