@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "build": "cd .. && npm install --include=dev && npm run build",
     "heroku-postbuild": "cd .. && npm install --include=dev && npm run build"
   },
   "dependencies": {

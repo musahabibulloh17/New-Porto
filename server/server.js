@@ -217,8 +217,19 @@ app.post("/api/upload", upload.single("image"), (req, res) => {
 });
 
 if (fs.existsSync(path.join(distDir, "index.html"))) {
+  console.log("Frontend dist found at:", distDir);
   app.get("*", (_req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
+  });
+} else {
+  console.log("No frontend dist at:", distDir);
+  app.get("/", (_req, res) => {
+    res.json({
+      status: "ok",
+      mode: dbReady ? "database" : "in-memory",
+      api: "/api/projects",
+      note: "Frontend not built yet. dist/ folder not found.",
+    });
   });
 }
 
