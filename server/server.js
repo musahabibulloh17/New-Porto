@@ -24,6 +24,10 @@ const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsDir));
 
+// Health check endpoint (required by DigitalOcean App Platform)
+app.get("/", (_req, res) => res.status(200).json({ status: "ok" }));
+app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+
 // Multer setup for image upload
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
