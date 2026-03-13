@@ -78,6 +78,14 @@ async function initDatabase() {
     const client = await pool.connect();
     console.log("✅ PostgreSQL connected successfully");
 
+    // Grant permissions (needed for DigitalOcean dev database)
+    try {
+      await client.query(`GRANT ALL ON SCHEMA public TO CURRENT_USER`);
+      await client.query(`SET search_path TO public`);
+    } catch (e) {
+      console.log("ℹ️  Grant skipped:", e.message);
+    }
+
     // Create table if not exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS projects (
