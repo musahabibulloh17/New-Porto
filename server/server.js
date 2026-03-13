@@ -52,7 +52,10 @@ const upload = multer({
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: {
+        rejectUnauthorized: false,
+        checkServerIdentity: () => undefined,
+      },
     })
   : new Pool({
       host: process.env.DB_HOST || "localhost",
@@ -109,7 +112,8 @@ async function initDatabase() {
     client.release();
   } catch (err) {
     console.error("❌ Database init failed:", err.message);
-    process.exit(1);
+    console.error("⚠️  Server will continue running but database may not work");
+    // Don't exit — let server stay up so we can see logs
   }
 }
 
