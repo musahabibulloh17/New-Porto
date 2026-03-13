@@ -88,7 +88,7 @@ async function initDatabase() {
 
     // Create table if not exists
     await client.query(`
-      CREATE TABLE IF NOT EXISTS projects (
+      CREATE TABLE IF NOT EXISTS public.projects (
         id          SERIAL PRIMARY KEY,
         name        VARCHAR(255) NOT NULL,
         description_short VARCHAR(500) NOT NULL DEFAULT '',
