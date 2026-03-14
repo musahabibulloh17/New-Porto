@@ -23,6 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment variables
+.env
+.env.local
+
 # Server
 server/.env
 server/uploads/

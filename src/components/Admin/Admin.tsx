@@ -272,6 +272,7 @@ function ProjectForm({ initial, saving, onUploadImage, onSave, onCancel }: Proje
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert("Nama project harus diisi!");
+    if (!image) return alert("Image wajib diisi! Upload foto project terlebih dahulu.");
 
     const features = featuresText
       .split("\n")
