@@ -202,6 +202,17 @@
   border-color: #b8993f;
 }
 
+.admin-btn.secondary {
+  background: #34495e;
+  border-color: #34495e;
+  color: #fff;
+}
+
+.admin-btn.secondary:hover {
+  background: #2c3e50;
+  border-color: #2c3e50;
+}
+
 .admin-btn.danger {
   color: #e74c3c;
   border-color: #fde8e5;

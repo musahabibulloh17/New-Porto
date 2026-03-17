@@ -35,17 +35,17 @@ export default function About() {
               Hi, I'm <strong>Musa</strong>
             </h2>
             <p>
-              I am an UI/UX Designer and I design because I love solving
-              problems, questioning 'why,' and making things feel right. UI/UX
-              isn't just about screens, it's about people, habits, and the tiny
-              details that make a product worth using. It's not just about
-              looking good; it's about feeling effortless. If it makes sense
-              without overthinking, I've done my job.
+              Mahasiswa D4 Teknik Informatika semester 6 di Politeknik Negeri Jember
+              (IPK&nbsp;3,74/4,00). Saya berfokus pada web &amp; mobile development,
+              sekaligus menekuni animasi, 3D&nbsp;modeling (Blender), dan video editing.
+              Bagi saya, teknologi dan kreativitas visual adalah dua sisi yang tidak
+              terpisahkan — saya membangun aplikasi yang tidak hanya bekerja dengan
+              baik, tetapi juga terasa tepat untuk penggunanya.
             </p>
           </motion.div>
 
           <div className="info-columns">
-            {/* Experience Column 1 */}
+            {/* Experience Column */}
             <motion.div
               className="info-column"
               initial="hidden"
@@ -55,21 +55,40 @@ export default function About() {
             >
               <h3>EXPERIENCE</h3>
               <InfoItem
-                title="Interaction Design Intern at Sanora Wear"
-                date="aug 2024 - feb 2025"
+                title="Web &amp; Mobile Developer — JTI Innovation Center (Magang)"
+                date="Politeknik Negeri Jember"
               />
               <InfoItem
-                title="Interaction Design Intern at EYJ Health"
-                date="june 2024 - aug 2025"
+                title="Mobile &amp; Web Developer — Slearn"
+                date="Platform pembelajaran digital"
               />
               <InfoItem
-                title="Graphic Design & Social Media Intern at We The Change"
-                date="june 2023 - aug 2023"
+                title="Web Developer — Ukerma"
+                date="Sistem informasi unit kegiatan mahasiswa"
               />
-              <InfoItem title="Freelance Designer" date="2023 - PRESENT" />
+              <InfoItem
+                title="Mobile Developer — Dikantin Polije"
+                date="Aplikasi kantin digital Politeknik Negeri Jember"
+              />
+              <InfoItem
+                title="Web Developer — Polaris"
+                date="Website perpustakaan Politeknik Pelayaran Surabaya"
+              />
+              <InfoItem
+                title="Web Developer — Parcel Payment DWP Polije"
+                date="Sistem pembayaran parsel"
+              />
+              <InfoItem
+                title="Mobile Developer (Lead) — M3 Care"
+                date="Aplikasi kesehatan SMA Muhammadiyah 3 Jember"
+              />
+              <InfoItem
+                title="Desktop Developer — UD Barokah Accessories"
+                date="Aplikasi manajemen toko"
+              />
             </motion.div>
 
-            {/* Experience Column 2 */}
+            {/* Achievements Column */}
             <motion.div
               className="info-column"
               initial="hidden"
@@ -77,23 +96,30 @@ export default function About() {
               variants={fadeUp}
               custom={2}
             >
-              <h3>EXPERIENCE</h3>
+              <h3>ACHIEVEMENTS</h3>
               <InfoItem
-                title="Secretary Discipline Committee, SOD"
-                date="discipline committee, upes dehradun"
+                title="🥇 Juara 1 Poster Animasi — KMIPN VII 2025"
+                date="Kompetisi Mahasiswa Informatika &amp; Ilmu Komputer Nasional"
               />
               <InfoItem
-                title="Student Ambassador at UPES"
-                date="student ambassador - upes dehradun"
+                title="Finalis Animasi — KMIPN VI 2024"
+                date="Kompetisi Mahasiswa Informatika &amp; Ilmu Komputer Nasional"
               />
               <InfoItem
-                title="Event Head Kalakulture, Club UPES"
-                date="kalakulture club, upes dehradun"
+                title="12 Besar — Refactory Hackathon UGM 2026"
+                date="Peran: Hacker &amp; Hipster · Produk: Syncoflow (AI meeting &amp; task automation)"
               />
-              <InfoItem
-                title="Registration Team at India HCI 2023"
-                date="hci india - 2023 upes dehradun"
-              />
+
+              <h3 className="softwares-title">TECH STACK</h3>
+              <div className="tech-tags">
+                {["Laravel", "Blade", "Flutter", "Dart", "React", "TypeScript", "Blender"].map(
+                  (tech) => (
+                    <span key={tech} className="tech-tag">
+                      {tech}
+                    </span>
+                  )
+                )}
+              </div>
             </motion.div>
 
             {/* Contact Column */}
@@ -104,17 +130,23 @@ export default function About() {
               variants={fadeUp}
               custom={3}
             >
-              <h3>CONTACT</h3>
+              <h3>EDUCATION</h3>
+              <InfoItem
+                title="D4 Teknik Informatika"
+                date="Politeknik Negeri Jember · IPK 3,74/4,00 · 2022–sekarang"
+              />
+
+              <h3 className="softwares-title">CONTACT</h3>
               <ContactItem
-                icon="behance"
-                iconClass="fab fa-behance"
-                text="https://www.behance.net/musahabibulloh"
-                href="https://www.behance.net/musahabibulloh"
+                icon="github"
+                iconClass="fab fa-github"
+                text="github.com/musahabibulloh17"
+                href="https://github.com/musahabibulloh17"
               />
               <ContactItem
                 icon="linkedin"
                 iconClass="fab fa-linkedin-in"
-                text="https://www.linkedin.com/in/musa-habibulloh-al-faruq-49648b265/"
+                text="linkedin.com/in/musa-habibulloh-al-faruq"
                 href="https://www.linkedin.com/in/musa-habibulloh-al-faruq-49648b265/"
               />
               <ContactItem
@@ -123,20 +155,6 @@ export default function About() {
                 text="musahabibullah3@gmail.com"
                 href="mailto:musahabibullah3@gmail.com"
               />
-
-              <h3 className="softwares-title">SOFTWARES</h3>
-              <div className="software-icons">
-                <div className="sw-icon figma">
-                  <i className="fab fa-figma" />
-                </div>
-                <div className="sw-icon photoshop">Ps</div>
-                <div className="sw-icon sketch">
-                  <i className="fas fa-gem" />
-                </div>
-                <div className="sw-icon xd">Xd</div>
-                <div className="sw-icon illustrator">Ai</div>
-                <div className="sw-icon indesign">Id</div>
-              </div>
             </motion.div>
           </div>
         </div>

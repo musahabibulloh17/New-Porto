@@ -57,6 +57,15 @@
   text-transform: uppercase;
 }
 
+.hero-tagline {
+  font-size: clamp(11px, 1.5vw, 15px);
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: #888;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
 @media (max-width: 768px) {
   .portfolio-text {
     letter-spacing: -4px;

@@ -55,7 +55,16 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
         >
-          MUSA HABIBULLOH
+          MUSA HABIBULLOH AL FARUQ
+        </motion.p>
+
+        <motion.p
+          className="hero-tagline"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5, duration: 0.8, ease: "easeOut" }}
+        >
+          Web &amp; Mobile Developer · Animator · Creative Technologist
         </motion.p>
       </div>
     </section>

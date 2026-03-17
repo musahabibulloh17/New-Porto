@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent } from "react";
 import { useProjects, type ProjectData, type ProjectLink } from "../../context/ProjectContext";
+import { MUSA_PROJECTS } from "../../data/projects";
 import "./Admin.css";
 
 const ADMIN_PASS = "musa2026";
@@ -102,6 +103,48 @@ function AdminDashboard() {
   const [editing, setEditing] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const handleDeleteAll = async () => {
+    if (
+      !confirm(
+        `⚠️ Hapus SEMUA ${projects.length} proyek dari Firestore? Tindakan ini tidak bisa dibatalkan!`
+      )
+    )
+      return;
+    setClearing(true);
+    try {
+      for (const project of projects) {
+        await deleteProject(project.id);
+      }
+      alert("✅ Semua proyek berhasil dihapus!");
+    } catch (err) {
+      alert("Gagal hapus: " + (err instanceof Error ? err.message : ""));
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handleSeedProjects = async () => {
+    if (
+      !confirm(
+        `Tambahkan ${MUSA_PROJECTS.length} proyek default ke Firestore? Ini tidak akan menghapus proyek yang sudah ada.`
+      )
+    )
+      return;
+    setSeeding(true);
+    try {
+      for (const project of MUSA_PROJECTS) {
+        await addProject(project);
+      }
+      alert("✅ Semua proyek berhasil ditambahkan!");
+    } catch (err) {
+      alert("Gagal seed: " + (err instanceof Error ? err.message : ""));
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const handleSave = async (data: Omit<ProjectData, "id">, id?: string) => {
     setSaving(true);
@@ -135,6 +178,32 @@ function AdminDashboard() {
         <span className="admin-count">
           {projects.length} project{projects.length !== 1 && "s"}
         </span>
+        {projects.length > 0 && (
+          <button
+            className="admin-btn danger"
+            onClick={handleDeleteAll}
+            disabled={clearing}
+            title="Hapus semua proyek dari Firestore"
+          >
+            {clearing ? (
+              <><i className="fas fa-spinner fa-spin" /> Menghapus...</>
+            ) : (
+              <><i className="fas fa-trash" /> Hapus Semua</>
+            )}
+          </button>
+        )}
+        <button
+          className="admin-btn secondary"
+          onClick={handleSeedProjects}
+          disabled={seeding}
+          title="Isi data proyek Musa ke Firestore"
+        >
+          {seeding ? (
+            <><i className="fas fa-spinner fa-spin" /> Seeding...</>
+          ) : (
+            <><i className="fas fa-database" /> Seed Proyek</>
+          )}
+        </button>
         <button
           className="admin-btn primary"
           onClick={() => {
