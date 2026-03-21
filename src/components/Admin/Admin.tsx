@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent } from "react";
 import { useProjects, type ProjectData, type ProjectLink } from "../../context/ProjectContext";
+import { useAchievements } from "../../context/AchievementContext";
 import { MUSA_PROJECTS } from "../../data/projects";
 import "./Admin.css";
 
@@ -99,6 +100,35 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
 /*  Dashboard                                                         */
 /* ------------------------------------------------------------------ */
 function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<"projects" | "achievements">("projects");
+
+  return (
+    <div className="admin-body">
+      {/* Tabs */}
+      <div className="admin-tabs">
+        <button
+          className={`admin-tab${activeTab === "projects" ? " active" : ""}`}
+          onClick={() => setActiveTab("projects")}
+        >
+          <i className="fas fa-folder" /> Projects
+        </button>
+        <button
+          className={`admin-tab${activeTab === "achievements" ? " active" : ""}`}
+          onClick={() => setActiveTab("achievements")}
+        >
+          <i className="fas fa-trophy" /> Achievements
+        </button>
+      </div>
+
+      {activeTab === "projects" ? <ProjectsTab /> : <AchievementsTab />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Projects Tab                                                      */
+/* ------------------------------------------------------------------ */
+function ProjectsTab() {
   const { projects, addProject, updateProject, deleteProject, uploadImage } = useProjects();
   const [editing, setEditing] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -173,7 +203,7 @@ function AdminDashboard() {
   };
 
   return (
-    <div className="admin-body">
+    <>
       <div className="admin-toolbar">
         <span className="admin-count">
           {projects.length} project{projects.length !== 1 && "s"}
@@ -282,7 +312,241 @@ function AdminDashboard() {
           </div>
         ))}
       </div>
-    </div>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Achievements Tab                                                   */
+/* ------------------------------------------------------------------ */
+function AchievementsTab() {
+  const { achievements, addAchievement, updateAchievement, deleteAchievement, uploadImage } =
+    useAchievements();
+  const [showAdd, setShowAdd] = useState(false);
+  const [newText, setNewText] = useState("");
+  const [newImage, setNewImage] = useState<string | undefined>();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editImage, setEditImage] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const addFileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (
+    file: File,
+    setter: (v: string) => void
+  ) => {
+    if (file.size > 5 * 1024 * 1024) return alert("File terlalu besar! Maksimum 5MB.");
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setter(url);
+    } catch {
+      alert("Gagal upload gambar!");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAdd = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newText.trim()) return;
+    setSaving(true);
+    try {
+      await addAchievement(newText.trim(), newImage);
+      setNewText("");
+      setNewImage(undefined);
+      setShowAdd(false);
+    } catch (err) {
+      alert("Gagal menambahkan! " + (err instanceof Error ? err.message : ""));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id: string) => {
+    if (!editText.trim()) return;
+    setSaving(true);
+    try {
+      await updateAchievement(id, editText.trim(), editImage);
+      setEditingId(null);
+    } catch (err) {
+      alert("Gagal menyimpan! " + (err instanceof Error ? err.message : ""));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string, text: string) => {
+    if (!confirm(`Hapus achievement "${text}"?`)) return;
+    try {
+      await deleteAchievement(id);
+    } catch (err) {
+      alert("Gagal menghapus! " + (err instanceof Error ? err.message : ""));
+    }
+  };
+
+  return (
+    <>
+      <div className="admin-toolbar">
+        <span className="admin-count">
+          {achievements.length} achievement{achievements.length !== 1 && "s"}
+        </span>
+        <button
+          className="admin-btn primary"
+          onClick={() => { setShowAdd(true); setEditingId(null); }}
+        >
+          <i className="fas fa-plus" /> Tambah Achievement
+        </button>
+      </div>
+
+      {/* Add Form */}
+      {showAdd && (
+        <form className="admin-achievement-form" onSubmit={handleAdd}>
+          <label className="admin-form-label">Judul Achievement</label>
+          <textarea
+            rows={2}
+            placeholder="Tulis achievement..."
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            autoFocus
+          />
+          <label className="admin-form-label">Foto Sertifikat (opsional)</label>
+          <div className="admin-cert-upload">
+            {newImage ? (
+              <div className="admin-cert-preview">
+                <img src={newImage} alt="preview" />
+                <button type="button" className="admin-btn small danger" onClick={() => setNewImage(undefined)}>
+                  <i className="fas fa-times" /> Hapus
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="admin-btn small"
+                disabled={uploading}
+                onClick={() => addFileRef.current?.click()}
+              >
+                <i className={uploading ? "fas fa-spinner fa-spin" : "fas fa-upload"} />
+                {uploading ? " Uploading..." : " Upload Sertifikat"}
+              </button>
+            )}
+            <input
+              ref={addFileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, setNewImage); }}
+            />
+          </div>
+          <div className="admin-form-actions">
+            <button type="button" className="admin-btn" onClick={() => { setShowAdd(false); setNewText(""); setNewImage(undefined); }}>
+              Batal
+            </button>
+            <button type="submit" className="admin-btn primary" disabled={saving || uploading}>
+              <i className={saving ? "fas fa-spinner fa-spin" : "fas fa-save"} />
+              {saving ? " Menyimpan..." : " Tambah"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Achievement List */}
+      <div className="admin-list">
+        {achievements.map((ach, i) => (
+          <div key={ach.id} className="admin-card">
+            {editingId === ach.id ? (
+              <div className="admin-achievement-form">
+                <label className="admin-form-label">Judul Achievement</label>
+                <textarea
+                  rows={2}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  autoFocus
+                />
+                <label className="admin-form-label">Foto Sertifikat (opsional)</label>
+                <div className="admin-cert-upload">
+                  {editImage ? (
+                    <div className="admin-cert-preview">
+                      <img src={editImage} alt="preview" />
+                      <button type="button" className="admin-btn small danger" onClick={() => setEditImage(undefined)}>
+                        <i className="fas fa-times" /> Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-btn small"
+                      disabled={uploading}
+                      onClick={() => editFileRef.current?.click()}
+                    >
+                      <i className={uploading ? "fas fa-spinner fa-spin" : "fas fa-upload"} />
+                      {uploading ? " Uploading..." : " Upload Sertifikat"}
+                    </button>
+                  )}
+                  <input
+                    ref={editFileRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, setEditImage); }}
+                  />
+                </div>
+                <div className="admin-form-actions">
+                  <button className="admin-btn" onClick={() => setEditingId(null)}>
+                    Batal
+                  </button>
+                  <button
+                    className="admin-btn primary"
+                    disabled={saving || uploading}
+                    onClick={() => handleUpdate(ach.id)}
+                  >
+                    <i className={saving ? "fas fa-spinner fa-spin" : "fas fa-save"} />
+                    {saving ? " Menyimpan..." : " Simpan"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="admin-card-row">
+                {ach.image && (
+                  <div className="admin-card-preview">
+                    <img src={ach.image} alt={ach.text} />
+                  </div>
+                )}
+                <div className="admin-card-info">
+                  <span className="admin-card-num">#{i + 1}</span>
+                  <p>"{ach.text}"</p>
+                  {ach.image
+                    ? <span className="admin-badge green"><i className="fas fa-image" /> Ada sertifikat</span>
+                    : <span className="admin-badge gray"><i className="fas fa-times" /> Belum ada sertifikat</span>
+                  }
+                </div>
+                <div className="admin-card-actions">
+                  <button
+                    className="admin-btn icon"
+                    title="Edit"
+                    onClick={() => { setEditingId(ach.id); setEditText(ach.text); setEditImage(ach.image); setShowAdd(false); }}
+                  >
+                    <i className="fas fa-pen" />
+                  </button>
+                  <button
+                    className="admin-btn icon danger"
+                    title="Hapus"
+                    onClick={() => handleDelete(ach.id, ach.text)}
+                  >
+                    <i className="fas fa-trash" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {achievements.length === 0 && !showAdd && (
+          <p className="admin-empty">Belum ada achievement. Klik "Tambah Achievement" untuk mulai.</p>
+        )}
+      </div>
+    </>
   );
 }
 

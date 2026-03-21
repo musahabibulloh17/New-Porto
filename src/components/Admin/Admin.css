@@ -154,8 +154,133 @@
 .admin-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 30px;
+  padding: 0 30px 24px;
 }
+
+/* ===== Tabs ===== */
+.admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 24px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+  padding-top: 20px;
+}
+
+.admin-tab {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.admin-tab:hover {
+  color: #333;
+}
+
+.admin-tab.active {
+  color: #222;
+  border-bottom-color: #222;
+}
+
+/* ===== Achievement Form ===== */
+.admin-achievement-form {
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-achievement-form textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.admin-achievement-form textarea:focus {
+  outline: none;
+  border-color: #222;
+}
+
+/* ===== Empty State ===== */
+.admin-empty {
+  text-align: center;
+  color: #bbb;
+  font-size: 13px;
+  padding: 40px 20px;
+}
+
+/* ===== Badge ===== */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-top: 6px;
+}
+
+.admin-badge.green {
+  background: #e6f9ee;
+  color: #2d8a4e;
+}
+
+.admin-badge.gray {
+  background: #f0f0f0;
+  color: #999;
+}
+
+/* ===== Achievement cert upload ===== */
+.admin-cert-upload {
+  margin-bottom: 12px;
+}
+
+.admin-cert-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-cert-preview img {
+  height: 80px;
+  border-radius: 6px;
+  object-fit: contain;
+  border: 1px solid #eee;
+  background: #fafafa;
+}
+
+.admin-form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 
 .admin-toolbar {
   display: flex;

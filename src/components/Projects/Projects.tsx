@@ -64,7 +64,7 @@ export default function Projects() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          CONTENT
+          PROJECTS
         </motion.h2>
       </div>
 
